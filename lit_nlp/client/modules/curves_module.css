@@ -1,0 +1,10 @@
+.charts-holder {
+  display: flex;
+  flex-flow: wrap;
+  padding-top: 4px;
+}
+
+.module-toolbar {
+  border-bottom: 1px solid var(--lit-neutral-300);
+}
+
