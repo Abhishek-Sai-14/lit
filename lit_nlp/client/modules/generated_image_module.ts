@@ -23,7 +23,7 @@ import {observable} from 'mobx';
 import {LitModule} from '../core/lit_module';
 import {styles as sharedStyles} from '../lib/shared_styles.css';
 import {IndexedInput, LitName, ModelInfoMap, Spec} from '../lib/types';
-import {doesOutputSpecContain} from '../lib/utils';
+import {doesOutputSpecContain, isLitSubtype} from '../lib/utils';
 
 /**
  * A LIT module that renders generated text.
@@ -46,7 +46,7 @@ export class GeneratedImageModule extends LitModule {
   static override get styles() {
     const styles = css`
       .field-group {
-        padding: 4px;
+        padding: 8px;
       }
     `;
     return [sharedStyles, styles];
@@ -56,9 +56,8 @@ export class GeneratedImageModule extends LitModule {
 
   override firstUpdated() {
     this.reactImmediately(
-        () => this.selectionService.primarySelectedInputData, data => {
-          this.updateSelection(data);
-        });
+        () => this.selectionService.primarySelectedInputData,
+        data => {this.updateSelection(data);});
   }
 
   private async updateSelection(input: IndexedInput|null) {
@@ -67,32 +66,51 @@ export class GeneratedImageModule extends LitModule {
 
     const dataset = this.appState.currentDataset;
     const promise = this.apiService.getPreds(
-        [input], this.model, dataset, GeneratedImageModule.supportedTypes,
-        'Generating images');
+        [input], this.model, dataset,
+        [...GeneratedImageModule.supportedTypes, 'URL'], 'Generating images');
     const results = await this.loadLatest('generatedImages', promise);
     if (results === null) return;
 
     this.generatedImages = results[0];
   }
 
-  renderOutputGroup(name: string) {
+  renderImage(name: string, src: string) {
     // clang-format off
     return html`
       <div class='field-group'>
         <div class="field-title">${name}</div>
-        <img src=${this.generatedImages[name]}>
+        <img src=${src}>
       </div>
     `;
     // clang-format on
   }
 
+  renderLink(name: string, url: string) {
+    // clang-format off
+    return html`
+      <div class='field-group'>
+        <div class="field-title">${name}</div>
+        <a href=${url} target="_blank">
+          ${url}
+          <mwc-icon class="icon-button">open_in_new</mwc-icon>
+        </a>
+      </div>`;
+    // clang-format on
+  }
+
   override render() {
+    const {output} = this.appState.getModelSpec(this.model);
     // clang-format off
     return html`
       <div class='module-container'>
         <div class="module-results-area">
-          ${Object.keys(this.generatedImages).map(
-              name => this.renderOutputGroup(name))}
+          ${Object.entries(this.generatedImages).map(([key, value]) => {
+              if (isLitSubtype(output[key], 'URL')) {
+                return this.renderLink(key, value);
+              } else {
+                return this.renderImage(key, value);
+              }
+            })}
         </div>
       </div>
     `;
